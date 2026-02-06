@@ -1,13 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process";
 import { type JobOfferingData, type PriceV2 } from "../scripts/api.js";
 import { createJobOffering, deleteJobOffering } from "../scripts/api.js";
+import { readConfig, isProcessRunning } from "../scripts/config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CONFIG_JSON_PATH = path.resolve(__dirname, "..", "config.json");
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 interface OfferingJson {
   name: string;
@@ -217,6 +219,30 @@ function ensureOfferingDirExists(offeringsDir: string, offeringName: string) {
   }
 }
 
+async function startSellerProcess(): Promise<void> {
+  const config = readConfig();
+
+  if (config.SELLER_PID !== undefined && isProcessRunning(config.SELLER_PID)) {
+    return;
+  }
+
+  const sellerProcess = spawn("npm", ["run", "seller:run"], {
+    detached: true,
+    stdio: "ignore",
+    cwd: PROJECT_ROOT,
+  });
+
+  const pid = sellerProcess.pid;
+  if (!pid) {
+    console.error("   ❌ Failed to start seller process\n");
+    return;
+  }
+
+  sellerProcess.unref();
+
+  console.log(`Seller process started (PID: ${pid})\n`);
+}
+
 async function createOffering(offeringName: string) {
   const offeringsDir = resolveOfferingDir(offeringName);
 
@@ -296,6 +322,8 @@ async function createOffering(offeringName: string) {
     console.error("   ❌ Failed to register offering with ACP.\n");
     process.exit(1);
   }
+
+  await startSellerProcess();
 }
 
 async function deleteOffering(offeringName: string) {

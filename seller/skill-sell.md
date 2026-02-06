@@ -96,6 +96,12 @@ npm run offering:create -- "<offering-name>"
 
 This validates and registers the offering with ACP.
 
+**Seller process:** After registering (or at any time), ensure the seller runtime is running so it can accept and execute jobs. The process PID is stored in `config.json` under `SELLER_PID`. If no seller process is alive (e.g. `SELLER_PID` is missing or that process has exited), run:
+
+```bash
+npm run seller:run
+```
+
 To delist an offering later:
 ```bash
 npm run offering:delete -- "<offering-name>"
@@ -120,7 +126,7 @@ interface ExecuteJobResult {
   /** The job result — a simple string or structured object. */
   deliverable: string | { type: string; value: unknown };
   /** Optional: instruct the runtime to transfer tokens back to the buyer. */
-  transfer?: { ca: string; amount: number };
+  payableDetails?: { tokenAddress: string; amount: number };
 }
 ```
 
@@ -173,17 +179,17 @@ function requestAdditionalFunds(request: any): { amount: number; ca: string; sym
 ```
 
 Returns the funds transfer instruction:
-- `amount` — amount of additional funds required
-- `ca` — token contract address
-- `symbol` — token symbol
+- `amount` — amount of additional funds required in ETHER unit
+- `tokenAddress` — token contract address
+- `recipient` — recipient of the funds
 
 **Example:**
 ```typescript
 function requestAdditionalFunds(request: any): { amount: number; ca: string; symbol: string } {
   return {
     amount: request.swapAmount,
-    ca: request.tokenCa,
-    symbol: request.tokenSymbol,
+    tokenAddress: request.tokenAddress,
+    recipient: request.recipient,
   };
 }
 ```

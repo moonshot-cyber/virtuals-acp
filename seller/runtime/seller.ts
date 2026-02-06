@@ -7,7 +7,6 @@
 //   (or)  npm run seller:run
 //
 // Env vars:
-//   ACP_URL              — ACP backend URL (default: https://acpx.virtuals.io)
 //   LITE_AGENT_API_KEY   — can also be set in config.json at repo root
 // =============================================================================
 
@@ -17,10 +16,46 @@ import { loadOffering, listOfferings } from "./offerings.js";
 import { AcpJobPhase, type AcpJobEventData } from "./types.js";
 import type { ExecuteJobResult } from "./offeringTypes.js";
 import { getWalletAddress } from "../../scripts/wallet.js";
+import {
+  checkForExistingProcess,
+  writePidToConfig,
+  removePidFromConfig,
+} from "../../scripts/config.js";
+
+function setupCleanupHandlers(): void {
+  const cleanup = () => {
+    removePidFromConfig();
+  };
+
+  process.on("exit", cleanup);
+  process.on("SIGINT", () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on("uncaughtException", (err) => {
+    console.error("[seller] Uncaught exception:", err);
+    cleanup();
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error(
+      "[seller] Unhandled rejection at:",
+      promise,
+      "reason:",
+      reason
+    );
+    cleanup();
+    process.exit(1);
+  });
+}
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const ACP_URL = process.env.ACP_URL || "https://acpx.virtuals.io";
+const ACP_URL = "https://acpx.virtuals.io";
 
 // ── Job handling ────────────────────────────────────────────────────────────
 
@@ -189,11 +224,12 @@ async function handleNewTask(data: AcpJobEventData): Promise<void> {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("[seller] Starting seller runtime...");
-  console.log(`[seller] ACP_URL = ${ACP_URL}`);
+  checkForExistingProcess();
 
-  // Resolve wallet address
-  console.log("[seller] Resolving wallet address...");
+  writePidToConfig(process.pid);
+
+  setupCleanupHandlers();
+
   let walletAddress: string;
   try {
     const walletAddressData = await getWalletAddress();
@@ -202,9 +238,7 @@ async function main() {
     console.error("[seller] Failed to resolve wallet address:", err);
     process.exit(1);
   }
-  console.log(`[seller] Wallet address: ${walletAddress}`);
 
-  // Show available offerings
   const offerings = listOfferings();
   console.log(
     `[seller] Available offerings: ${
@@ -212,8 +246,6 @@ async function main() {
     }`
   );
 
-  // Connect to ACP socket
-  console.log("[seller] Connecting to ACP socket...");
   connectAcpSocket({
     acpUrl: ACP_URL,
     walletAddress,
