@@ -10,12 +10,12 @@
 //   LITE_AGENT_API_KEY   — can also be set in config.json at repo root
 // =============================================================================
 
-import { connectAcpSocket } from "./acpSocket.js";
-import { acceptOrRejectJob, requestPayment, deliverJob } from "./sellerApi.js";
-import { loadOffering, listOfferings } from "./offerings.js";
-import { AcpJobPhase, type AcpJobEventData } from "./types.js";
-import type { ExecuteJobResult } from "./offeringTypes.js";
-import { getWalletAddress } from "../../scripts/wallet.js";
+import { connectAcpSocket } from "./acpSocket";
+import { acceptOrRejectJob, requestPayment, deliverJob } from "./sellerApi";
+import { loadOffering, listOfferings } from "./offerings";
+import { AcpJobPhase, type AcpJobEventData } from "./types";
+import type { ExecuteJobResult } from "./offeringTypes";
+import { getMyAgentInfo } from "../../scripts/wallet";
 import {
   checkForExistingProcess,
   writePidToConfig,
@@ -232,8 +232,8 @@ async function main() {
 
   let walletAddress: string;
   try {
-    const walletAddressData = await getWalletAddress();
-    walletAddress = walletAddressData.walletAddress;
+    const agentData = await getMyAgentInfo();
+    walletAddress = agentData.walletAddress;
   } catch (err) {
     console.error("[seller] Failed to resolve wallet address:", err);
     process.exit(1);

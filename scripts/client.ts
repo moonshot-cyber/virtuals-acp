@@ -1,6 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
-import { readConfig } from "./config.js";
+import { readConfig } from "./config";
 
 dotenv.config();
 

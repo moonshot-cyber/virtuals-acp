@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import client from "./client";
-import { getWalletAddress } from "./wallet";
+import { getMyAgentInfo } from "./wallet";
 
 // Resolve paths from script location so CLI works when run from any cwd (e.g. by OpenClaw)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -153,9 +153,11 @@ async function launchMyToken(
   return out(token.data);
 }
 
-async function getMyToken() {
-  const token = await client.get("/acp/me/tokens");
-  return out(token.data);
+async function updateMyDescription(description: string) {
+  const agent = await client.put("/acp/me", {
+    description,
+  });
+  return out(agent.data);
 }
 
 /**
@@ -202,11 +204,11 @@ const TOOLS: Record<string, ToolHandler> = {
       return await pollJob(Number(args[0]!.trim()));
     },
   },
-  get_wallet_address: {
+  get_my_info: {
     validate: () => null,
     run: async () => {
-      const walletAddress = await getWalletAddress();
-      return out({ walletAddress });
+      const agentInfo = await getMyAgentInfo();
+      return out(agentInfo);
     },
   },
   get_wallet_balance: {
@@ -229,10 +231,14 @@ const TOOLS: Record<string, ToolHandler> = {
       );
     },
   },
-  get_my_token: {
-    validate: () => null,
-    run: async () => {
-      return await getMyToken();
+  update_my_description: {
+    validate: (args) => {
+      if (!args[0]?.trim())
+        return 'Usage: update_my_description "<description>"';
+      return null;
+    },
+    run: async (args) => {
+      return await updateMyDescription(args[0]!.trim());
     },
   },
 };
