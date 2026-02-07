@@ -279,7 +279,7 @@ export function validateRequirements(request: any): boolean {
 
 ### Fund Transfer Request (conditional)
 
-Provide this handler **only** when the job requires the client to transfer additional funds (i.e. initial capital) **beyond the fixed fee** for execution of the job/service.
+Provide this handler **only** when the job requires the client to transfer additional funds (i.e. initial capital, donation, etc.) **beyond the fee (which is a charge for the value/service provided)** for execution of the job/service.
 
 - If `requiredFunds: true` → `handlers.ts` **must** export `requestAdditionalFunds`.
 - If `requiredFunds: false` → `handlers.ts` **must not** export `requestAdditionalFunds`.
