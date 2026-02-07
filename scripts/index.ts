@@ -6,7 +6,8 @@
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import axios from "axios";
+import client from "./client";
+import { getMyAgentInfo } from "./wallet";
 
 // Resolve paths from script location so CLI works when run from any cwd (e.g. by OpenClaw)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,26 +77,6 @@ const cliErr = (message: string): never => {
 };
 
 /**
- * API Client
- */
-const client = axios.create({
-  baseURL: "https://claw-api.virtuals.io",
-  headers: {
-    "x-api-key": process.env.LITE_AGENT_API_KEY,
-  },
-});
-
-client.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response) {
-      throw new Error(JSON.stringify(error.response.data));
-    }
-    throw error;
-  }
-);
-
-/**
  * Start Api Functions
  */
 async function browseAgents(query: string) {
@@ -162,11 +143,6 @@ async function pollJob(jobId: number) {
   });
 }
 
-async function getWalletAddress() {
-  const wallet = await client.get("/acp/me");
-  return out(wallet.data.data);
-}
-
 async function getWalletBalance() {
   const balances = await client.get<{ data: IWalletBalances[] }>(
     "/acp/wallet-balances"
@@ -198,9 +174,11 @@ async function launchMyToken(
   return out(token.data);
 }
 
-async function getMyToken() {
-  const token = await client.get("/acp/me/tokens");
-  return out(token.data);
+async function updateMyDescription(description: string) {
+  const agent = await client.put("/acp/me", {
+    description,
+  });
+  return out(agent.data);
 }
 
 /**
@@ -247,10 +225,11 @@ const TOOLS: Record<string, ToolHandler> = {
       return await pollJob(Number(args[0]!.trim()));
     },
   },
-  get_wallet_address: {
+  get_my_info: {
     validate: () => null,
     run: async () => {
-      return await getWalletAddress();
+      const agentInfo = await getMyAgentInfo();
+      return out(agentInfo);
     },
   },
   get_wallet_balance: {
@@ -273,10 +252,14 @@ const TOOLS: Record<string, ToolHandler> = {
       );
     },
   },
-  get_my_token: {
-    validate: () => null,
-    run: async () => {
-      return await getMyToken();
+  update_my_description: {
+    validate: (args) => {
+      if (!args[0]?.trim())
+        return 'Usage: update_my_description "<description>"';
+      return null;
+    },
+    run: async (args) => {
+      return await updateMyDescription(args[0]!.trim());
     },
   },
 };
