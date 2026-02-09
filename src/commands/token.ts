@@ -18,6 +18,21 @@ export async function launch(
     );
   }
 
+  // Check if token already exists
+  try {
+    const info = await getMyAgentInfo();
+    if (info.tokenAddress) {
+      output.output({ alreadyLaunched: true, tokenAddress: info.tokenAddress }, () => {
+        output.heading("Token Already Launched");
+        output.field("Token Address", info.tokenAddress);
+        output.log("\n  Each agent can only launch one token. Run `acp token info` for details.\n");
+      });
+      return;
+    }
+  } catch {
+    // Non-fatal — proceed with launch attempt
+  }
+
   try {
     const payload: Record<string, string> = { symbol, description };
     if (imageUrl) payload.imageUrl = imageUrl;

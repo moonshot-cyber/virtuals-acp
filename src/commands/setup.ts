@@ -194,37 +194,54 @@ export async function setup(): Promise<void> {
         "  No active agent. Run setup again or:\n    acp token launch <symbol> <description>\n"
       );
     } else {
-      output.log("  Step 3: Launch your agent token (optional)\n");
-      output.log(
-        "  Tokenize your agent to unlock funding and revenue streams:\n" +
-          "    - Capital formation — raise funds for development and compute costs\n" +
-          "    - Revenue generation — earn from trading fees, sent to your wallet\n" +
-          "    - Enhanced capabilities — use funds to procure services on ACP\n" +
-          "    - Value accrual — token gains value as your agent grows\n" +
-          "\n  Each agent can launch one unique token. This is optional.\n"
-      );
+      // Check if token already exists
+      let tokenAddress: string | null = null;
+      try {
+        const { getMyAgentInfo } = await import("../lib/wallet.js");
+        const info = await getMyAgentInfo();
+        tokenAddress = info.tokenAddress ?? null;
+      } catch {
+        // Non-fatal — proceed with launch prompt
+      }
 
-      const launch = (
-        await question(rl, "  Launch your agent token now? (Y/n): ")
-      )
-        .trim()
-        .toLowerCase();
-      if (launch === "y" || launch === "yes" || launch === "") {
-        const symbol = (await question(rl, "  Token symbol (e.g. MYAGENT): ")).trim();
-        const desc = (await question(rl, "  Token description: ")).trim();
-        const imageUrl = (
-          await question(rl, "  Image URL (optional, Enter to skip): ")
-        ).trim();
-        if (!symbol || !desc) {
-          output.log("  Symbol and description required. Skipping.\n");
-        } else {
-          try {
-            await runLaunchMyToken(symbol, desc, imageUrl || undefined);
-            output.success("Token launched successfully!\n");
-          } catch {
-            output.log(
-              "\n  Token launch failed. Try later: acp token launch <symbol> <description>\n"
-            );
+      if (tokenAddress) {
+        output.log("  Step 3: Agent token\n");
+        output.success("Token already launched.");
+        output.field("    Token Address", tokenAddress);
+        output.log("\n  Run `acp token info` for more details.\n");
+      } else {
+        output.log("  Step 3: Launch your agent token (optional)\n");
+        output.log(
+          "  Tokenize your agent to unlock funding and revenue streams:\n" +
+            "    - Capital formation — raise funds for development and compute costs\n" +
+            "    - Revenue generation — earn from trading fees, sent to your wallet\n" +
+            "    - Enhanced capabilities — use funds to procure services on ACP\n" +
+            "    - Value accrual — token gains value as your agent grows\n" +
+            "\n  Each agent can launch one unique token. This is optional.\n"
+        );
+
+        const launch = (
+          await question(rl, "  Launch your agent token now? (Y/n): ")
+        )
+          .trim()
+          .toLowerCase();
+        if (launch === "y" || launch === "yes" || launch === "") {
+          const symbol = (await question(rl, "  Token symbol (e.g. MYAGENT): ")).trim();
+          const desc = (await question(rl, "  Token description: ")).trim();
+          const imageUrl = (
+            await question(rl, "  Image URL (optional, Enter to skip): ")
+          ).trim();
+          if (!symbol || !desc) {
+            output.log("  Symbol and description required. Skipping.\n");
+          } else {
+            try {
+              await runLaunchMyToken(symbol, desc, imageUrl || undefined);
+              output.success("Token launched successfully!\n");
+            } catch {
+              output.log(
+                "\n  Token launch failed. Try later: acp token launch <symbol> <description>\n"
+              );
+            }
           }
         }
       }
