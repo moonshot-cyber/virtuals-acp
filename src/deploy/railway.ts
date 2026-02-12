@@ -1,51 +1,102 @@
 // =============================================================================
 // Railway CLI wrapper.
 // Thin wrapper over the `railway` binary using child_process.
-// Manages per-agent Railway project linking via .railway/config.json.
+// Railway v4 stores config globally at ~/.railway/config.json, keyed by
+// project path. We read/write that to manage per-agent project linking.
 // =============================================================================
 
 import { execSync, spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { ROOT } from "../lib/config.js";
 import type { RailwayProjectConfig } from "../lib/config.js";
 
 const EXEC_OPTS = { cwd: ROOT, encoding: "utf-8" as const };
-const RAILWAY_CONFIG_DIR = path.resolve(ROOT, ".railway");
-const RAILWAY_CONFIG_PATH = path.resolve(RAILWAY_CONFIG_DIR, "config.json");
+const RAILWAY_GLOBAL_CONFIG = path.resolve(
+  os.homedir(),
+  ".railway",
+  "config.json"
+);
 
-// -- Project linking --
+// -- Global config helpers (Railway v4 format) --
 
-/** Read the Railway CLI's local project link (.railway/config.json). */
-export function readRailwayConfig(): RailwayProjectConfig | undefined {
+interface RailwayGlobalProject {
+  projectPath: string;
+  name: string;
+  project: string;
+  environment: string;
+  environmentName: string;
+  service: string | null;
+}
+
+interface RailwayGlobalConfig {
+  projects: Record<string, RailwayGlobalProject>;
+  user?: { token: string };
+  linkedFunctions?: unknown;
+}
+
+function readGlobalConfig(): RailwayGlobalConfig | undefined {
   try {
-    const content = fs.readFileSync(RAILWAY_CONFIG_PATH, "utf-8");
-    const parsed = JSON.parse(content);
-    if (parsed.project && parsed.environment) {
-      return { project: parsed.project, environment: parsed.environment };
-    }
-    return undefined;
+    const content = fs.readFileSync(RAILWAY_GLOBAL_CONFIG, "utf-8");
+    return JSON.parse(content);
   } catch {
     return undefined;
   }
 }
 
-/** Write a Railway project link so subsequent CLI commands target this project. */
-export function writeRailwayConfig(config: RailwayProjectConfig): void {
-  if (!fs.existsSync(RAILWAY_CONFIG_DIR)) {
-    fs.mkdirSync(RAILWAY_CONFIG_DIR, { recursive: true });
+function writeGlobalConfig(config: RailwayGlobalConfig): void {
+  const dir = path.dirname(RAILWAY_GLOBAL_CONFIG);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(
-    RAILWAY_CONFIG_PATH,
+    RAILWAY_GLOBAL_CONFIG,
     JSON.stringify(config, null, 2) + "\n"
   );
+}
+
+// -- Project linking --
+
+/** Read the Railway project config for the current working directory. */
+export function readRailwayConfig(): RailwayProjectConfig | undefined {
+  const global = readGlobalConfig();
+  if (!global?.projects) return undefined;
+
+  const entry = global.projects[ROOT];
+  if (entry?.project && entry?.environment) {
+    return { project: entry.project, environment: entry.environment };
+  }
+  return undefined;
+}
+
+/**
+ * Write a Railway project link so subsequent CLI commands target this project.
+ * Updates the global ~/.railway/config.json with an entry for ROOT.
+ */
+export function writeRailwayConfig(config: RailwayProjectConfig): void {
+  const global = readGlobalConfig() ?? { projects: {} };
+  if (!global.projects) global.projects = {};
+
+  // Preserve existing entry fields, update project + environment
+  const existing = global.projects[ROOT];
+  global.projects[ROOT] = {
+    projectPath: ROOT,
+    name: existing?.name ?? "",
+    project: config.project,
+    environment: config.environment,
+    environmentName: existing?.environmentName ?? "production",
+    service: existing?.service ?? null,
+  };
+
+  writeGlobalConfig(global);
 }
 
 // -- CLI checks --
 
 export function checkCli(): { installed: boolean; version?: string } {
   try {
-    const version = execSync("railway version", {
+    const version = execSync("railway --version", {
       ...EXEC_OPTS,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
@@ -70,12 +121,41 @@ export function isLoggedIn(): boolean {
 // -- Project management --
 
 export function login(): void {
-  execSync("railway login", { ...EXEC_OPTS, stdio: "inherit" });
+  try {
+    execSync("railway login --browserless", {
+      ...EXEC_OPTS,
+      stdio: "inherit",
+    });
+  } catch {
+    // Fall back to browser-based login if --browserless fails
+    execSync("railway login", { ...EXEC_OPTS, stdio: "inherit" });
+  }
 }
 
 export function initProject(name?: string): void {
   const cmd = name ? `railway init --name "${name}"` : "railway init";
   execSync(cmd, { ...EXEC_OPTS, stdio: "inherit" });
+}
+
+/** Link the named service so subsequent CLI commands (variables, logs, etc.) target it. */
+export function linkService(name: string): void {
+  execSync(`railway service link ${name}`, {
+    ...EXEC_OPTS,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+}
+
+/** Check if a service is currently linked. */
+export function hasLinkedService(): boolean {
+  try {
+    const status = execSync("railway status", {
+      ...EXEC_OPTS,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    return !status.includes("Service: None");
+  } catch {
+    return false;
+  }
 }
 
 // -- Variables --

@@ -14,6 +14,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
+import readline from "readline";
 import * as output from "../lib/output.js";
 import {
   readConfig,
@@ -42,14 +44,45 @@ function getOfferingsRoot(agentName: string): string {
 
 // -- Helpers --
 
-function requireCli(): void {
+function prompt(question: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) =>
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    })
+  );
+}
+
+function installRailwayCli(): void {
+  output.log("  Installing Railway CLI...\n");
+  execSync("npm install -g @railway/cli", {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  const check = railway.checkCli();
+  if (!check.installed) {
+    output.fatal("Installation failed. Try manually: npm install -g @railway/cli");
+  }
+  output.success(`Railway CLI installed (${check.version})`);
+}
+
+async function requireCli(): Promise<void> {
   const { installed } = railway.checkCli();
   if (!installed) {
-    output.fatal(
-      "Railway CLI not found. Install it:\n\n" +
-        "  npm install -g @railway/cli\n\n" +
-        "  Or see: https://docs.railway.com/guides/cli"
+    const answer = await prompt(
+      "  Railway CLI not found. Install it now? (Y/n): "
     );
+    if (answer.toLowerCase() === "n") {
+      output.fatal(
+        "Railway CLI is required. Install manually:\n\n" +
+          "  npm install -g @railway/cli\n"
+      );
+    }
+    installRailwayCli();
   }
 }
 
@@ -66,8 +99,8 @@ function requireAgent(): AgentEntry {
  * Reads the stored Railway project config for this agent and writes it
  * to .railway/config.json so all subsequent `railway` commands target it.
  */
-function linkToCurrentAgent(): AgentEntry {
-  requireCli();
+async function linkToCurrentAgent(): Promise<AgentEntry> {
+  await requireCli();
   const agent = requireAgent();
   const config = readConfig();
   const deployInfo = config.DEPLOYS?.[agent.id];
@@ -141,15 +174,9 @@ function ensureDockerFiles(): void {
 // -- Commands --
 
 export async function setup(): Promise<void> {
-  // 1. Check CLI
-  const { installed, version } = railway.checkCli();
-  if (!installed) {
-    output.fatal(
-      "Railway CLI not found. Install it:\n\n" +
-        "  npm install -g @railway/cli\n\n" +
-        "  Or see: https://docs.railway.com/guides/cli"
-    );
-  }
+  // 1. Check CLI (auto-install if missing)
+  await requireCli();
+  const { version } = railway.checkCli();
   output.log(`  Railway CLI: ${version}`);
 
   const agent = requireAgent();
@@ -169,31 +196,25 @@ export async function setup(): Promise<void> {
   }
   output.success("Logged in to Railway");
 
-  // 4. Create new Railway project for this agent
-  output.log(`  Creating Railway project for agent "${agent.name}"...`);
-  railway.initProject(`acp-${agent.name}`);
-
-  // 5. Capture the project config that Railway just wrote
-  const railwayConfig = railway.readRailwayConfig();
-  if (!railwayConfig) {
-    output.fatal(
-      "Failed to read Railway project config after init. Try running `railway init` manually."
-    );
-  }
-
-  // 6. Set API key on this project
-  const config = readConfig();
-  const apiKey = config.LITE_AGENT_API_KEY;
-  if (apiKey) {
-    railway.setVariable("LITE_AGENT_API_KEY", apiKey);
-    output.success("Set LITE_AGENT_API_KEY on Railway");
+  // 4. Check if there's already a Railway project linked to this directory
+  let railwayConfig = railway.readRailwayConfig();
+  if (railwayConfig) {
+    output.log(`  Found existing Railway project linked to this directory.`);
   } else {
-    output.warn(
-      "No LITE_AGENT_API_KEY in local config. Run `acp setup` first, then re-run this command."
-    );
+    // Create new Railway project for this agent
+    output.log(`  Creating Railway project for agent "${agent.name}"...`);
+    railway.initProject(`acp-${agent.name}`);
+
+    railwayConfig = railway.readRailwayConfig();
+    if (!railwayConfig) {
+      output.fatal(
+        "Failed to read Railway project config after init. Try running `railway init` manually."
+      );
+    }
   }
 
-  // 7. Save project config for this agent
+  // 6. Save project config for this agent
+  // (API key will be set during deploy, after the service is created)
   saveDeployInfo(agent.id, {
     provider: "railway",
     agentName: agent.name,
@@ -217,7 +238,7 @@ export async function setup(): Promise<void> {
 }
 
 export async function deploy(): Promise<void> {
-  const agent = linkToCurrentAgent();
+  const agent = await linkToCurrentAgent();
 
   // Check offerings exist locally
   const offerings = listLocalOfferings(agent.name);
@@ -237,9 +258,38 @@ export async function deploy(): Promise<void> {
   output.log(`  Offerings: ${offerings.join(", ")}`);
   output.log("");
 
-  // Deploy
+  // Deploy (this creates the service on first run)
   output.log("  Deploying to Railway...\n");
   railway.up();
+
+  // Link the service if not already linked (railway up creates it but doesn't auto-link)
+  if (!railway.hasLinkedService()) {
+    const projectName = `acp-${agent.name}`;
+    try {
+      railway.linkService(projectName);
+      output.success(`Linked service ${projectName}`);
+    } catch {
+      output.warn(
+        "Could not auto-link service. Link manually:\n" +
+          `  railway service link ${projectName}`
+      );
+    }
+  }
+
+  // Set API key on the service
+  const config = readConfig();
+  const apiKey = config.LITE_AGENT_API_KEY;
+  if (apiKey) {
+    try {
+      railway.setVariable("LITE_AGENT_API_KEY", apiKey);
+      output.success("Set LITE_AGENT_API_KEY on Railway");
+    } catch {
+      output.warn(
+        "Could not set LITE_AGENT_API_KEY. Set it manually:\n" +
+          "  acp serve deploy railway env set LITE_AGENT_API_KEY=" + apiKey
+      );
+    }
+  }
 
   // Update deploy tracking
   const existing = getDeployInfo(agent.id)!;
@@ -264,7 +314,7 @@ export async function deploy(): Promise<void> {
 }
 
 export async function status(): Promise<void> {
-  const agent = linkToCurrentAgent();
+  const agent = await linkToCurrentAgent();
   const deployInfo = getDeployInfo(agent.id);
 
   output.heading(`Railway Deployment — ${agent.name}`);
@@ -282,12 +332,12 @@ export async function logs(
   follow: boolean = false,
   filter: LogFilter = {}
 ): Promise<void> {
-  linkToCurrentAgent();
+  await linkToCurrentAgent();
   railway.streamLogs(follow, filter);
 }
 
 export async function teardown(): Promise<void> {
-  const agent = linkToCurrentAgent();
+  const agent = await linkToCurrentAgent();
   output.log(`  Removing deployment for agent "${agent.name}"...\n`);
   railway.down();
 
@@ -304,7 +354,7 @@ export async function teardown(): Promise<void> {
 }
 
 export async function env(): Promise<void> {
-  const agent = linkToCurrentAgent();
+  const agent = await linkToCurrentAgent();
   output.heading(`Railway Env Vars — ${agent.name}`);
   output.log("");
   const vars = railway.listVariables();
@@ -317,7 +367,7 @@ export async function env(): Promise<void> {
 }
 
 export async function envSet(keyValue: string): Promise<void> {
-  linkToCurrentAgent();
+  await linkToCurrentAgent();
 
   const eqIdx = keyValue.indexOf("=");
   if (eqIdx === -1) {
@@ -343,7 +393,7 @@ export async function envSet(keyValue: string): Promise<void> {
 }
 
 export async function envDelete(key: string): Promise<void> {
-  linkToCurrentAgent();
+  await linkToCurrentAgent();
 
   if (!key) {
     output.fatal("Usage: acp serve deploy railway env delete <KEY>");
