@@ -103,10 +103,12 @@ function buildHelp(): string {
     section("Marketplace"),
     cmd("search <query>", "Search agents with filters & reranking"),
     flag("--mode <hybrid|vector|keyword>", "Search strategy (default: hybrid)"),
-    flag("--online / --no-online", "Filter by online status (default: on)"),
-    flag("--graduated / --no-graduated", "Filter by graduation (default: on)"),
-    flag("--high-risk / --no-high-risk", "Filter by high-risk flag"),
-    flag("--cluster <name>", "Filter by cluster name"),
+    flag(
+      "--graduation <graduated|ungraduated|all>",
+      "Graduation filter (default: graduated)"
+    ),
+    flag("--online <online|offline|all>", "Online filter (default: online)"),
+    flag("--claw", "Search OpenClaw agents only"),
     flag("--contains <text>", "Keep results containing these terms"),
     flag("--match <all|any>", "Term matching for --contains (default: all)"),
     cmd("browse <query>", "Quick agent search (simple)"),
@@ -187,29 +189,30 @@ function buildCommandHelp(command: string): string | undefined {
       "",
       `  ${cyan("Search Mode")}`,
       flag("--mode <hybrid|vector|keyword>", "Search strategy (default: hybrid)"),
+      `    ${dim("hybrid: BM25 + vector embeddings")}`,
+      `    ${dim("vector: vector embeddings")}`,
+      `    ${dim("keyword: BM25")}`,
+      `    ${dim("Indexed data: agent name, agent description, and job descriptions.")}`,
       "",
       `  ${cyan("Filters")}`,
-      flag("--online / --no-online", "Filter by online status (default: on)"),
-      flag("--graduated / --no-graduated", "Filter by graduation (default: on)"),
-      flag("--high-risk / --no-high-risk", "Filter by high-risk flag"),
-      flag("--cluster <name>", "Filter by cluster name"),
+      flag(
+        "--graduation <graduated|ungraduated|all>",
+        "Graduation filter (default: graduated)"
+      ),
+      flag("--online <online|offline|all>", "Online filter (default: online)"),
+      flag("--claw", "Search OpenClaw agents only (skips graduation filter)"),
       flag("--contains <text>", "Keep results containing these terms"),
       flag("--match <all|any>", "Term matching for --contains (default: all)"),
       "",
       `  ${cyan("Reranking")}`,
-      flag("--no-rerank", "Disable reranking (default: on)"),
-      flag("--performance-weight <0-1>", "Performance vs semantic weight (default: 0.97)"),
-      flag("--similarity-cutoff <0-1>", "Min vector similarity score (default: 0.42)"),
-      flag("--sparse-cutoff <float>", "Min keyword score (default: 0.0)"),
+      flag("--performance-weight <0-1>", "Performance rerank weight (default: 0.97)"),
+      `    ${dim("Blends semantic relevance with agent performance metrics.")}`,
+      `    ${dim("Score = (1 - weight) × semantic + weight × performance")}`,
+      `    ${dim("0 = pure semantic, 1 = pure performance. Applied to top 5 results only.")}`,
+      flag("--similarity-cutoff <0-1>", "Min vector similarity score (default: 0.5)"),
+      flag("--sparse-cutoff <float>", "Min keyword score, keyword mode only (default: 0.0)"),
       "",
-      `  ${dim("Defaults: mode=hybrid, online=true, graduated=true, rerank=on (weight=0.97)")}`,
-      "",
-      `  ${dim("Examples:")}`,
-      `    acp search "trading"`,
-      `    acp search "memes" --online --mode vector`,
-      `    acp search "data analysis" --graduated --no-high-risk`,
-      `    acp search "content" --contains "image generation" --match any`,
-      `    acp search "trading" --performance-weight 0.5`,
+      `  ${dim("Defaults: mode=hybrid, graduation=graduated, online=online, rerank weight=0.97")}`,
       "",
     ].join("\n"),
 
@@ -392,8 +395,22 @@ async function main(): Promise<void> {
       | undefined;
     searchArgs = removeFlagWithValue(searchArgs, "--mode");
 
-    const cluster = getFlagValue(searchArgs, "--cluster");
-    searchArgs = removeFlagWithValue(searchArgs, "--cluster");
+    const graduationValue = getFlagValue(searchArgs, "--graduation") as
+      | "graduated"
+      | "ungraduated"
+      | "all"
+      | undefined;
+    searchArgs = removeFlagWithValue(searchArgs, "--graduation");
+
+    const online = getFlagValue(searchArgs, "--online") as
+      | "online"
+      | "offline"
+      | "all"
+      | undefined;
+    searchArgs = removeFlagWithValue(searchArgs, "--online");
+
+    const claw = hasFlag(searchArgs, "--claw") ? true : undefined;
+    searchArgs = removeFlags(searchArgs, "--claw");
 
     const contains = getFlagValue(searchArgs, "--contains");
     searchArgs = removeFlagWithValue(searchArgs, "--contains");
@@ -413,38 +430,20 @@ async function main(): Promise<void> {
     const sparCutoff = getFlagValue(searchArgs, "--sparse-cutoff");
     searchArgs = removeFlagWithValue(searchArgs, "--sparse-cutoff");
 
-    // Boolean flags
-    let online: boolean | undefined;
-    if (hasFlag(searchArgs, "--online")) online = true;
-    else if (hasFlag(searchArgs, "--no-online")) online = false;
-    searchArgs = removeFlags(searchArgs, "--online", "--no-online");
-
-    let graduated: boolean | undefined;
-    if (hasFlag(searchArgs, "--graduated")) graduated = true;
-    else if (hasFlag(searchArgs, "--no-graduated")) graduated = false;
-    searchArgs = removeFlags(searchArgs, "--graduated", "--no-graduated");
-
-    let highRisk: boolean | undefined;
-    if (hasFlag(searchArgs, "--high-risk")) highRisk = true;
-    else if (hasFlag(searchArgs, "--no-high-risk")) highRisk = false;
-    searchArgs = removeFlags(searchArgs, "--high-risk", "--no-high-risk");
-
-    let rerank: boolean | undefined;
-    if (hasFlag(searchArgs, "--no-rerank")) rerank = false;
-    searchArgs = removeFlags(searchArgs, "--no-rerank");
+    // Graduation filter
+    let graduation: "graduated" | "ungraduated" | "all" | undefined;
+    if (graduationValue) graduation = graduationValue;
 
     // Remaining args (non-flags) form the query
     const query = searchArgs.filter((a) => a && !a.startsWith("-")).join(" ");
 
     return search(query, {
       mode,
+      graduation,
       online,
-      graduated,
-      highRisk,
-      cluster,
+      claw,
       contains,
       match: matchVal,
-      rerank,
       performanceWeight: perfWeight !== undefined ? parseFloat(perfWeight) : undefined,
       similarityCutoff: simCutoff !== undefined ? parseFloat(simCutoff) : undefined,
       sparseCutoff: sparCutoff !== undefined ? parseFloat(sparCutoff) : undefined,

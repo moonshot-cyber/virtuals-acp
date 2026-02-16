@@ -5,19 +5,18 @@
 import axios from "axios";
 import * as output from "../lib/output.js";
 
-const SEARCH_URL = "BASE URL";
+const SEARCH_URL =
+  process.env.SEARCH_URL || "http://acpx.virtuals.io/api/agents/v5/search";
 
 // -- Types --
 
 export interface SearchOptions {
   mode?: "hybrid" | "vector" | "keyword";
-  online?: boolean;
-  graduated?: boolean;
-  highRisk?: boolean;
-  cluster?: string;
+  graduation?: "graduated" | "ungraduated" | "all";
+  online?: "online" | "offline" | "all";
+  claw?: boolean;
   contains?: string;
   match?: "all" | "any";
-  rerank?: boolean;
   performanceWeight?: number;
   similarityCutoff?: number;
   sparseCutoff?: number;
@@ -75,11 +74,9 @@ interface Agent {
 
 export const SEARCH_DEFAULTS = {
   mode: "hybrid" as const,
-  online: true,
-  graduated: true,
-  rerank: true,
+  online: "online" as const,
   performanceWeight: 0.97,
-  similarityCutoff: 0.42,
+  similarityCutoff: 0.5,
   sparseCutoff: 0.0,
   match: "all" as const,
 };
@@ -106,18 +103,25 @@ function buildParams(query: string, opts: SearchOptions): Record<string, string>
     params.searchMode = apiMode;
   }
 
-  // Boolean filters (online & graduated default to true)
-  params.isOnline = String(opts.online ?? SEARCH_DEFAULTS.online);
-  params.hasGraduated = String(opts.graduated ?? SEARCH_DEFAULTS.graduated);
-  if (opts.highRisk !== undefined) params.isHighRisk = String(opts.highRisk);
+  // Filters
+  const online = opts.online ?? SEARCH_DEFAULTS.online;
+  if (online === "online") params.isOnline = "true";
+  else if (online === "offline") params.isOnline = "false";
+
+  // Graduation: --claw implies "all" (no claw agents are graduated yet)
+  const graduation = opts.claw
+    ? (opts.graduation ?? "all")
+    : (opts.graduation ?? "graduated");
+  if (graduation === "graduated") params.hasGraduated = "true";
+  else if (graduation === "ungraduated") params.hasGraduated = "false";
+
+  if (opts.claw) params.cluster = "OPENCLAW";
 
   // String filters
-  if (opts.cluster) params.cluster = opts.cluster;
   if (opts.contains) params.fullTextFilter = opts.contains;
   if (opts.match) params.fullTextMatch = opts.match;
 
-  // Reranking
-  if (opts.rerank !== undefined) params.rerank = String(opts.rerank);
+  // Reranking (always on)
   if (opts.performanceWeight !== undefined)
     params.performanceWeight = String(opts.performanceWeight);
   if (opts.similarityCutoff !== undefined)
@@ -198,29 +202,23 @@ function formatSummary(opts: SearchOptions): string {
   parts.push(`mode=${opts.mode ?? SEARCH_DEFAULTS.mode}`);
 
   // Rerank
-  const rerank = opts.rerank ?? SEARCH_DEFAULTS.rerank;
-  if (rerank) {
-    const pw = opts.performanceWeight ?? SEARCH_DEFAULTS.performanceWeight;
-    parts.push(`rerank=on (weight=${pw})`);
-  } else {
-    parts.push("rerank=off");
-  }
+  const pw = opts.performanceWeight ?? SEARCH_DEFAULTS.performanceWeight;
+  parts.push(`rerank weight=${pw}`);
 
   // Active filters
   const filters: string[] = [];
+  const graduation = opts.claw
+    ? (opts.graduation ?? "all")
+    : (opts.graduation ?? "graduated");
+  if (graduation !== "all") filters.push(graduation);
   const online = opts.online ?? SEARCH_DEFAULTS.online;
-  const graduated = opts.graduated ?? SEARCH_DEFAULTS.graduated;
-  filters.push(`online=${online}`);
-  filters.push(`graduated=${graduated}`);
-  if (opts.highRisk !== undefined) filters.push(`high-risk=${opts.highRisk}`);
-  if (opts.cluster) filters.push(`cluster=${opts.cluster}`);
+  if (online !== "all") filters.push(online);
+  if (opts.claw) filters.push("claw");
   if (opts.contains) {
     const m = opts.match ?? SEARCH_DEFAULTS.match;
     filters.push(`contains="${opts.contains}" (match=${m})`);
   }
-  if (filters.length > 0) {
-    parts.push(filters.join(", "));
-  }
+  parts.push(filters.join(", "));
 
   return parts.join(" · ");
 }
@@ -235,6 +233,16 @@ export async function search(query: string, opts: SearchOptions): Promise<void> 
   // Validate: --match requires --contains
   if (opts.match && !opts.contains) {
     output.fatal("--match requires --contains");
+  }
+
+  if (opts.online && !["online", "offline", "all"].includes(opts.online)) {
+    output.fatal(`Invalid online filter "${opts.online}". Use: online, offline, all`);
+  }
+
+  if (opts.graduation && !["graduated", "ungraduated", "all"].includes(opts.graduation)) {
+    output.fatal(
+      `Invalid graduation filter "${opts.graduation}". Use: graduated, ungraduated, all`
+    );
   }
 
   const params = buildParams(query, opts);
