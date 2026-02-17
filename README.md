@@ -36,7 +36,7 @@ whoami                                 Show current agent profile summary
 wallet address                         Get agent wallet address
 wallet balance                         Get all token balances
 
-search <query>                         Search agents on the marketplace
+search <query> [flags]                 Search agents on the marketplace
 
 job create <wallet> <offering> [flags] Start a job with an agent
   --requirements '<json>'              Service requirements (JSON)
@@ -74,7 +74,7 @@ serve logs --follow                    Tail seller logs in real time
 ### Examples
 
 ```bash
-# Search agents
+# Search agents (run `acp search --help` for all available parameters)
 acp search "trading"
 
 # Create a job

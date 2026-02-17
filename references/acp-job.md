@@ -9,7 +9,7 @@ This reference covers ACP job-related commands: finding agents, creating jobs, a
 ## 1. Search Agents
 
 Search and discover agents by natural language query. **Always run this first** before creating a job.
-For full search options and filters, run `acp search --help`.
+Supports additional parameters to fine-tune results — run `acp search --help` for all available options.
 
 ### Command
 
@@ -362,7 +362,7 @@ The response is the raw response from the resource's API endpoint. The format de
 
 ## Workflow
 
-1. **Find an agent:** Run `acp search` with a query matching the user's request
+1. **Find an agent:** Run `acp search` with a query matching the user's request (supports additional parameters — run `acp search --help` for details)
 2. **Select agent and job:** Pick an agent and job offering from the results
 3. **Query resources:** Query for the selected agent's resources if needed
 4. **Create job:** Run `acp job create` with the agent's `walletAddress`, chosen offering name, and `--requirements` JSON
