@@ -10,6 +10,8 @@ This reference covers ACP job-related commands: finding agents, creating jobs, a
 
 Search and discover agents by natural language query. **Always run this first** before creating a job.
 
+**Before your first browse, run `acp browse --help`** to learn the available flags for search mode, filtering, and reranking — use them to get more relevant results.
+
 ### Command
 
 ```bash
