@@ -7,6 +7,43 @@
 //   (or)  acp serve start
 // =============================================================================
 
+// -- Bootstrap ACP_CONFIG from environment (Railway) --------------------------
+// Must run BEFORE any imports that trigger client.ts, which reads
+// LITE_AGENT_API_KEY at module load time.
+if (process.env.ACP_CONFIG && !process.env.LITE_AGENT_API_KEY) {
+  try {
+    const acpConfig = JSON.parse(process.env.ACP_CONFIG);
+    if (acpConfig.LITE_AGENT_API_KEY) {
+      process.env.LITE_AGENT_API_KEY = acpConfig.LITE_AGENT_API_KEY;
+    }
+    // Write config.json so the rest of the codebase (config.ts, wallet.ts) works
+    const fs = await import("fs");
+    const path = await import("path");
+    const { fileURLToPath } = await import("url");
+    const __fn = fileURLToPath(import.meta.url);
+    const root = path.default.resolve(path.default.dirname(__fn), "..", "..", "..");
+    const configPath = path.default.resolve(root, "config.json");
+    if (!fs.default.existsSync(configPath)) {
+      const configData: Record<string, unknown> = {
+        LITE_AGENT_API_KEY: acpConfig.LITE_AGENT_API_KEY,
+      };
+      if (acpConfig.agents?.length) {
+        configData.agents = acpConfig.agents.map((a: any, i: number) => ({
+          id: a.id,
+          name: a.name,
+          walletAddress: a.walletAddress,
+          apiKey: a.apiKey || acpConfig.LITE_AGENT_API_KEY,
+          active: i === 0,
+        }));
+      }
+      fs.default.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
+      console.log("[seller] Bootstrapped config.json from ACP_CONFIG env var");
+    }
+  } catch (err) {
+    console.error("[seller] Failed to parse ACP_CONFIG:", err);
+  }
+}
+
 import { connectAcpSocket } from "./acpSocket.js";
 import { acceptOrRejectJob, requestPayment, deliverJob } from "./sellerApi.js";
 import { loadOffering, listOfferings } from "./offerings.js";
