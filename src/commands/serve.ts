@@ -87,6 +87,7 @@ export async function start(): Promise<void> {
     detached: true,
     stdio: ["ignore", logFd, logFd],
     cwd: ROOT,
+    shell: process.platform === "win32",
   });
 
   if (!sellerProcess.pid) {

@@ -1,0 +1,10 @@
+{
+  "name": "full_wallet_protection",
+  "description": "Autonomous protection agent that triages wallet risk and runs the optimal combination of health, gas optimization, and retry services.",
+  "jobFee": 25.0,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to analyze"
+  }
+}

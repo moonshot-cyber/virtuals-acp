@@ -1,0 +1,10 @@
+{
+  "name": "gas_optimization",
+  "description": "Analyzes gas usage patterns and provides optimization recommendations with monthly savings projections.",
+  "jobFee": 5.0,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to analyze"
+  }
+}

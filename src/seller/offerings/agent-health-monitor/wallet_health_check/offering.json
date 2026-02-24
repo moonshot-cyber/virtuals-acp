@@ -1,0 +1,10 @@
+{
+  "name": "wallet_health_check",
+  "description": "Analyzes a blockchain wallet's health, scoring it 0-100 based on failure rates, gas waste, and transaction patterns. Returns actionable recommendations.",
+  "jobFee": 0.5,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to analyze"
+  }
+}
