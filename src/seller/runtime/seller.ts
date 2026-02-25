@@ -7,48 +7,6 @@
 //   (or)  acp serve start
 // =============================================================================
 
-// -- Bootstrap from individual environment variables (Railway) ----------------
-// Must run BEFORE any imports that trigger client.ts, which reads
-// LITE_AGENT_API_KEY at module load time.
-if (process.env.LITE_AGENT_API_KEY) {
-  try {
-    const fs = await import("fs");
-    const path = await import("path");
-    const { fileURLToPath } = await import("url");
-    const __fn = fileURLToPath(import.meta.url);
-    const root = path.default.resolve(path.default.dirname(__fn), "..", "..", "..");
-    const configPath = path.default.resolve(root, "config.json");
-
-    if (!fs.default.existsSync(configPath)) {
-      const configData: Record<string, unknown> = {
-        LITE_AGENT_API_KEY: process.env.LITE_AGENT_API_KEY,
-      };
-
-      // Build agent config from individual env vars
-      const agent = {
-        id: parseInt(process.env.AGENT_ID || "9055", 10),
-        name: process.env.AGENT_NAME || "Agent Health Monitor",
-        walletAddress: process.env.AGENT_WALLET_ADDRESS || "",
-        apiKey: process.env.AGENT_API_KEY || process.env.LITE_AGENT_API_KEY,
-        active: true,
-      };
-
-      if (agent.walletAddress) {
-        configData.agents = [agent];
-      }
-
-      if (process.env.SELLER_PID) {
-        configData.SELLER_PID = parseInt(process.env.SELLER_PID, 10);
-      }
-
-      fs.default.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
-      console.log("[seller] Bootstrapped config.json from individual environment variables");
-    }
-  } catch (err) {
-    console.error("[seller] Failed to bootstrap from env vars:", err);
-  }
-}
-
 import { connectAcpSocket } from "./acpSocket.js";
 import { acceptOrRejectJob, requestPayment, deliverJob } from "./sellerApi.js";
 import { loadOffering, listOfferings } from "./offerings.js";
@@ -290,4 +248,5 @@ main().catch((err) => {
   console.error("[seller] Fatal error:", err);
   process.exit(1);
 });
+
 
