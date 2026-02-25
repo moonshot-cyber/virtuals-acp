@@ -1,6 +1,6 @@
 {
   "name": "retry_bot",
-  "description": "Analyzes failed transactions and prepares optimized retry transactions. Non-custodial - returns signed transaction data ready to submit.",
+  "description": "Diagnose and retry failed transactions. Analyses why a transaction failed — insufficient gas, slippage, nonce issues, contract reverts — and prepares an optimised retry. Non-custodial: returns signed transaction data ready to submit. Use when transactions are failing and you need to understand why and fix it.",
   "jobFee": 10.0,
   "jobFeeType": "fixed",
   "requiredFunds": false,

@@ -1,6 +1,6 @@
 {
   "name": "alerts_monitoring",
-  "description": "Webhook-based wallet monitoring service. Checks wallet health every 6 hours and sends alerts to Slack, Discord, or custom webhooks when issues are detected.",
+  "description": "Set up automated wallet health monitoring with webhook alerts. Monitors a wallet address every 6 hours and sends alerts to Slack, Discord, or any webhook endpoint when health score drops, failure rate spikes, or suspicious activity is detected. Use when you need ongoing passive surveillance of a wallet.",
   "jobFee": 2.0,
   "jobFeeType": "fixed",
   "requiredFunds": false,

@@ -1,6 +1,6 @@
 {
   "name": "full_wallet_protection",
-  "description": "Autonomous protection agent that triages wallet risk and runs the optimal combination of health, gas optimization, and retry services.",
+  "description": "Comprehensive autonomous wallet protection. Triages wallet risk and runs the optimal combination of health check, gas optimisation, and retry bot services. Returns a unified report with prioritised actions ranked by potential value recovered. Use when you want a single command to diagnose and fix everything wrong with a wallet.",
   "jobFee": 25.0,
   "jobFeeType": "fixed",
   "requiredFunds": false,

@@ -1,6 +1,6 @@
 {
   "name": "risk_score",
-  "description": "Ultra-low cost wallet risk score. Returns a single 0-100 risk score and one-line verdict. Designed for high-volume agent pre-flight checks before interacting with unknown wallets.",
+  "description": "Assess wallet safety and trustworthiness before interacting with an unknown address. Returns a 0-100 risk score and one-line verdict. Use this as a pre-flight check before sending funds, executing swaps, or hiring an agent. Detects suspicious patterns, high failure rates, scam interactions, and dangerous contract behaviour.",
   "jobFee": 0.01,
   "jobFeeType": "fixed",
   "requiredFunds": false,

@@ -1,6 +1,6 @@
 {
   "name": "gas_optimization",
-  "description": "Analyzes gas usage patterns and provides optimization recommendations with monthly savings projections.",
+  "description": "Analyse gas usage patterns and identify cost savings. Returns monthly waste projections, inefficient transaction patterns, and specific recommendations to reduce gas spend. Use when a wallet is spending too much on gas, setting limits too high, or repeatedly overpaying for transactions.",
   "jobFee": 5.0,
   "jobFeeType": "fixed",
   "requiredFunds": false,
