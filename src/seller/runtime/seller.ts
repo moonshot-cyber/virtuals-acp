@@ -1,46 +1,51 @@
-#!/usr/bin/env npx tsx
+﻿#!/usr/bin/env npx tsx
 // =============================================================================
-// Seller runtime — main entrypoint.
+// Seller runtime â€” main entrypoint.
 //
 // Usage:
 //   npx tsx src/seller/runtime/seller.ts
 //   (or)  acp serve start
 // =============================================================================
 
-// -- Bootstrap ACP_CONFIG from environment (Railway) --------------------------
+// -- Bootstrap from individual environment variables (Railway) ----------------
 // Must run BEFORE any imports that trigger client.ts, which reads
 // LITE_AGENT_API_KEY at module load time.
-if (process.env.ACP_CONFIG && !process.env.LITE_AGENT_API_KEY) {
+if (process.env.LITE_AGENT_API_KEY) {
   try {
-    const acpConfig = JSON.parse(process.env.ACP_CONFIG);
-    if (acpConfig.LITE_AGENT_API_KEY) {
-      process.env.LITE_AGENT_API_KEY = acpConfig.LITE_AGENT_API_KEY;
-    }
-    // Write config.json so the rest of the codebase (config.ts, wallet.ts) works
     const fs = await import("fs");
     const path = await import("path");
     const { fileURLToPath } = await import("url");
     const __fn = fileURLToPath(import.meta.url);
     const root = path.default.resolve(path.default.dirname(__fn), "..", "..", "..");
     const configPath = path.default.resolve(root, "config.json");
+
     if (!fs.default.existsSync(configPath)) {
       const configData: Record<string, unknown> = {
-        LITE_AGENT_API_KEY: acpConfig.LITE_AGENT_API_KEY,
+        LITE_AGENT_API_KEY: process.env.LITE_AGENT_API_KEY,
       };
-      if (acpConfig.agents?.length) {
-        configData.agents = acpConfig.agents.map((a: any, i: number) => ({
-          id: a.id,
-          name: a.name,
-          walletAddress: a.walletAddress,
-          apiKey: a.apiKey || acpConfig.LITE_AGENT_API_KEY,
-          active: i === 0,
-        }));
+
+      // Build agent config from individual env vars
+      const agent = {
+        id: parseInt(process.env.AGENT_ID || "9055", 10),
+        name: process.env.AGENT_NAME || "Agent Health Monitor",
+        walletAddress: process.env.AGENT_WALLET_ADDRESS || "",
+        apiKey: process.env.AGENT_API_KEY || process.env.LITE_AGENT_API_KEY,
+        active: true,
+      };
+
+      if (agent.walletAddress) {
+        configData.agents = [agent];
       }
+
+      if (process.env.SELLER_PID) {
+        configData.SELLER_PID = parseInt(process.env.SELLER_PID, 10);
+      }
+
       fs.default.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
-      console.log("[seller] Bootstrapped config.json from ACP_CONFIG env var");
+      console.log("[seller] Bootstrapped config.json from individual environment variables");
     }
   } catch (err) {
-    console.error("[seller] Failed to parse ACP_CONFIG:", err);
+    console.error("[seller] Failed to bootstrap from env vars:", err);
   }
 }
 
@@ -165,7 +170,7 @@ async function handleNewTask(data: AcpJobEventData): Promise<void> {
         if (!isValid) {
           const rejectionReason = reason || "Validation failed";
           console.log(
-            `[seller] Validation failed for offering "${offeringName}" — rejecting: ${rejectionReason}`
+            `[seller] Validation failed for offering "${offeringName}" â€” rejecting: ${rejectionReason}`
           );
           await acceptOrRejectJob(jobId, {
             accept: false,
@@ -221,18 +226,18 @@ async function handleNewTask(data: AcpJobEventData): Promise<void> {
           deliverable: result.deliverable,
           payableDetail: result.payableDetail,
         });
-        console.log(`[seller] Job ${jobId} — delivered.`);
+        console.log(`[seller] Job ${jobId} â€” delivered.`);
       } catch (err) {
         console.error(`[seller] Error delivering job ${jobId}:`, err);
       }
     } else {
-      console.log(`[seller] Job ${jobId} in TRANSACTION but no offering resolved — skipping`);
+      console.log(`[seller] Job ${jobId} in TRANSACTION but no offering resolved â€” skipping`);
     }
     return;
   }
 
   console.log(
-    `[seller] Job ${jobId} in phase ${AcpJobPhase[data.phase] ?? data.phase} — no action needed`
+    `[seller] Job ${jobId} in phase ${AcpJobPhase[data.phase] ?? data.phase} â€” no action needed`
   );
 }
 
@@ -272,7 +277,7 @@ async function main() {
       },
       onEvaluate: (data) => {
         console.log(
-          `[seller] onEvaluate received for job ${data.id} — no action (evaluation handled externally)`
+          `[seller] onEvaluate received for job ${data.id} â€” no action (evaluation handled externally)`
         );
       },
     },
