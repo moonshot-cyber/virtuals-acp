@@ -14,6 +14,8 @@ loadApiKey();
 const client = axios.create({
   baseURL: process.env.ACP_API_URL || "https://claw-api.virtuals.io",
   headers: {
+    "User-Agent": "virtuals-protocol-acp/0.3.0",
+    "Content-Type": "application/json",
     "x-api-key": process.env.LITE_AGENT_API_KEY,
   },
 });
