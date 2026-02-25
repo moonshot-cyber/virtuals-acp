@@ -1,0 +1,10 @@
+{
+  "name": "retry_bot",
+  "description": "Analyzes failed transactions and prepares optimized retry transactions. Non-custodial - returns signed transaction data ready to submit.",
+  "jobFee": 10.0,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to analyze for failed transactions"
+  }
+}
