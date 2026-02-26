@@ -1,0 +1,7 @@
+{
+  "name": "Gas Optimization",
+  "description": "Fix the problems — per-transaction-type gas optimization",
+  "price": "5.00",
+  "endpoint": "https://agenthealthmonitor.xyz/optimize/{wallet_address}",
+  "method": "GET"
+}

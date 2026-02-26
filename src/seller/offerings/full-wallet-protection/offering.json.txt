@@ -1,0 +1,7 @@
+{
+  "name": "Full Wallet Protection",
+  "description": "Full autonomous protection — triages risk, runs all needed services",
+  "price": "25.00",
+  "endpoint": "https://agenthealthmonitor.xyz/agent/protect/{wallet_address}",
+  "method": "GET"
+}

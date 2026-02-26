@@ -1,0 +1,7 @@
+{
+  "name": "Wallet Health Check",
+  "description": "Diagnose wallet health — score, failure rates, gas waste",
+  "price": "0.50",
+  "endpoint": "https://agenthealthmonitor.xyz/health/{wallet_address}",
+  "method": "GET"
+}

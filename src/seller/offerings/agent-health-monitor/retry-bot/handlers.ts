@@ -1,6 +1,6 @@
 import type { ExecuteJobResult, ValidationResult } from "../../../runtime/offeringTypes.js";
 
-const API_BASE = "https://web-production-a512e.up.railway.app";
+const API_BASE = "https://agenthealthmonitor.xyz";
 const INTERNAL_KEY = "sup3r_s3cur3_k3y_12345";
 
 export async function executeJob(request: any): Promise<ExecuteJobResult> {
