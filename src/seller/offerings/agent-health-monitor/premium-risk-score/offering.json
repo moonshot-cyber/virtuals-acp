@@ -1,0 +1,10 @@
+{
+  "name": "premium_risk_score",
+  "description": "Premium risk score with Nansen smart money labels. Returns risk score (0-100), risk level, verdict, and Nansen wallet intelligence labels (e.g. Smart Money, Trading Bot, Fund, High Activity). Enriched with institutional-grade blockchain analytics.",
+  "jobFee": 0.05,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to assess risk and fetch Nansen intelligence labels for"
+  }
+}
