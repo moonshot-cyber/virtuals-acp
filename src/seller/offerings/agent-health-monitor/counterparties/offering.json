@@ -1,0 +1,10 @@
+{
+  "name": "counterparties",
+  "description": "Know Your Counterparty. Top counterparties for any wallet, enriched with Nansen labels. Shows who a wallet interacts with most, interaction counts, and volume in USD.",
+  "jobFee": 0.1,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to fetch top counterparties for"
+  }
+}
