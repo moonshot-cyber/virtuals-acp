@@ -1,0 +1,11 @@
+{
+  "name": "network_map",
+  "description": "Wallet Network Map via Nansen. Shows funding relationships, deployer connections, and multisig links. Returns wallet labels, relation type, chain, and transaction hash.",
+  "jobFee": 0.1,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to map related wallets for",
+    "chain": "Blockchain to query (optional, default: ethereum). Valid: arbitrum, avalanche, base, bnb, ethereum, polygon, solana, etc."
+  }
+}
