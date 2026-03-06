@@ -1,0 +1,10 @@
+{
+  "name": "agent_wash",
+  "description": "Agent hygiene scan — dust tokens, spam detection, gas efficiency analysis, failed transaction patterns. Returns cleanliness score (0-100) with prioritised cleanup recommendations.",
+  "jobFee": 0.5,
+  "jobFeeType": "fixed",
+  "requiredFunds": false,
+  "requirement": {
+    "wallet_address": "0x address to scan for hygiene issues"
+  }
+}
